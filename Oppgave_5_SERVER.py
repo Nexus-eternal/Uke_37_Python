@@ -1,63 +1,61 @@
 import cv2
 import socket
+import struct
 import threading
-import os
 
-def send_video_list(client_socket):
-    video_files = os.listdir("video_repository")
-    video_list = "\n".join([f"{i+1}: {video}" for i, video in enumerate(video_files)])
-    client_socket.sendall(video_list.encode())
+# Параметры сервера
+HOST = '0.0.0.0'
+PORT = 9999
 
-def handle_client(client_socket, addr):
-    send_video_list(client_socket)
+# Создание UDP-сокета
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+server_socket.bind((HOST, PORT))
 
-    selected_video_index = int(client_socket.recv(1024).decode())
-    video_files = os.listdir("video_repository")
+clients = []
 
-    if selected_video_index < 1 or selected_video_index > len(video_files):
-        print(f"Invalid video selection from {addr}.")
-        client_socket.sendall(b"ERROR: Invalid selection")
-        return
+def video_stream():
+    # Захват видео с веб-камеры
+    cam = cv2.VideoCapture(0)
 
-    selected_video = video_files[selected_video_index - 1]
-    video_path = os.path.join("video_repository", selected_video)
-
-    cap = cv2.VideoCapture(video_path)
-
-    while cap.isOpened():
-        ret, frame = cap.read()
+    while True:
+        ret, frame = cam.read()
         if not ret:
             break
 
-        _, img_encoded = cv2.imencode('.jpg', frame)
-        img_bytes = img_encoded.tobytes()
+        # Кодирование кадра в JPEG
+        ret, buffer = cv2.imencode('.jpg', frame)
+        data = buffer.tobytes()
 
-        client_socket.sendall(len(img_bytes).to_bytes(4, byteorder='big'))
-        client_socket.sendall(img_bytes)
+        # Если есть клиенты, отправляем им данные
+        for client in clients:
+            try:
+                # Разбиение на пакеты по 65000 байт
+                for i in range(0, len(data), 65000):
+                    server_socket.sendto(data[i:i + 65000], client)
+            except:
+                clients.remove(client)
 
-    cap.release()
+        if cv2.waitKey(1) == 27:  # Остановка при нажатии ESC
+            break
 
-    print(f"Video '{selected_video}' has been streamed to {addr}")
-    client_socket.sendall(b"END_STREAM")
+    cam.release()
+    cv2.destroyAllWindows()
 
-    client_socket.close()
-
-
-
-def serve():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('0.0.0.0', 12345))
-    server_socket.listen(5)
-
-    print("Server is listening...")
-
+def handle_clients():
     while True:
-        client_socket, addr = server_socket.accept()
-        print(f"Connection from {addr} has been established.")
-        client_handler = threading.Thread(target=handle_client, args=(client_socket, addr))
-        client_handler.start()
+        # Получение сообщения от нового клиента
+        msg, addr = server_socket.recvfrom(1024)
+        if addr not in clients:
+            clients.append(addr)
+            print(f"New client connected: {addr}")
+        if msg.decode('utf-16') == 'disconnect':
+            clients.remove(addr)
+            print(f"Client {addr} disconnected.")
 
-    server_socket.close()
+# Запуск видеопотока
+threading.Thread(target=video_stream).start()
 
-if __name__ == "__main__":
-    serve()
+# Запуск обработки клиентов
+threading.Thread(target=handle_clients).start()
+
+print("Server is running...")
