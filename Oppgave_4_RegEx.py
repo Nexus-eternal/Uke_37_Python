@@ -3,7 +3,7 @@ import os
 import re
 
 # Variables block
-my_name = "Ivanchenko"
+my_name = "Mykyta"
 
 
 # Define function to find specific word
@@ -20,7 +20,7 @@ def find_word_in_file(file_to_search, word_to_search):
     word = re.compile(rf'\b{word_to_search}\b', re.IGNORECASE)                  # Configure word to look for
     matches = word.findall(text_file)                                           # Look for word
     
-    print(word)
-    print(matches)
+#    print(word)
+    print(f"Word/Person {matches[0]} finds {len(matches)} times in document")
 
 find_word_in_file("EleverVG2IT.txt", my_name)
