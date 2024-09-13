@@ -23,5 +23,4 @@ def find_word_in_file(file_to_search, word_to_search):
     print(word)
     print(matches)
 
-#find_word_in_file("EleverVG2IT.txt", my_name)
 find_word_in_file("EleverVG2IT.txt", my_name)

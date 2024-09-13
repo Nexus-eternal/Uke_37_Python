@@ -12,5 +12,5 @@ def clear_EXIF(EXIF_input_image):
     output_image.putdata(image_data)                                            # Put new clear data
     output_image.save("images/output_image.jpg")                                # Saves output image
 
-# Call function
-clear_EXIF(input_image)
+
+clear_EXIF(input_image)                                                         # Call function
